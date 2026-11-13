@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2eee4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12110e" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Luna Ultra">
+<title>Luna Ultra exposure · luxkit</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="stylesheet" href="../shared/ui.css">
+</head>
+<body>
+<main>
+
+  <section class="readout" aria-live="polite">
+    <p class="title" id="outTitle">Luna Ultra · main lens</p>
+    <div class="values">
+      <div class="value">
+        <div class="value-label">ISO</div>
+        <div class="value-num" id="outIso">125</div>
+        <div class="value-sub" id="outIsoSub">&nbsp;</div>
+      </div>
+      <div class="value">
+        <div class="value-label">Shutter</div>
+        <div class="value-num" id="outShutter">1/50</div>
+        <div class="value-sub" id="outShutterSub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="meter" aria-hidden="true">
+      <div class="meter-scale">
+        <div class="meter-ticks">
+          <span></span><span class="minor"></span><span></span><span class="minor"></span><span></span><span class="minor"></span>
+          <span class="zero"></span>
+          <span class="minor"></span><span></span><span class="minor"></span><span></span><span class="minor"></span><span></span>
+        </div>
+        <div class="needle" id="needle"></div>
+      </div>
+      <div class="meter-nums"><span>Too dark</span><span>Just right</span><span>Too bright</span></div>
+    </div>
+    <p class="status" id="outStatus">Calculating…</p>
+    <p class="warn" id="outWarn" hidden></p>
+    <div class="advice" id="ndAdvice" hidden>
+      <span id="ndAdviceText"></span>
+      <button type="button" class="use-btn" id="useRec">Use</button>
+    </div>
+  </section>
+
+  <div class="error" id="errorBox" role="alert" hidden></div>
+
+  <fieldset class="group">
+    <legend><span class="step">01</span>How bright is it?</legend>
+    <div class="seg c2 rich">
+      <input type="radio" name="light" id="lBeach" value="beach"><label for="lBeach">Very bright sun<small>Beach, sand, snow</small></label>
+      <input type="radio" name="light" id="lSunny" value="sunny"><label for="lSunny">Sunny<small>Clear sky</small></label>
+      <input type="radio" name="light" id="lDay" value="daylight"><label for="lDay">Normal daylight<small>Hazy or soft sun</small></label>
+      <input type="radio" name="light" id="lCloud" value="overcast" checked><label for="lCloud">Cloudy<small>Overcast sky</small></label>
+      <input type="radio" name="light" id="lShade" value="shade"><label for="lShade">Shade<small>Under trees, buildings</small></label>
+      <input type="radio" name="light" id="lGolden" value="golden"><label for="lGolden">Golden hour<small>Sunset, low sun</small></label>
+      <input type="radio" name="light" id="lIndoor" value="indoor"><label for="lIndoor">Indoor<small>Home or office lights</small></label>
+      <input type="radio" name="light" id="lNight" value="night"><label for="lNight">Night<small>Lit streets</small></label>
+      <input type="radio" name="light" id="lMeasured" value="measured"><label for="lMeasured" class="wide">Measured with a light-meter app<small>Most accurate: type the EV reading</small></label>
+    </div>
+    <div class="ev-entry" id="evEntry" hidden>
+      <label for="evInput">EV at ISO 100</label>
+      <input id="evInput" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="5" placeholder="13.3" aria-describedby="evHint">
+      <p class="group-note" id="evHint">Set the app to ISO 100. Point it at what you’ll film, not the sky.</p>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend><span class="step">02</span>Frame rate</legend>
+    <div class="seg c5">
+      <input type="radio" name="fps" id="fps24" value="24" checked><label for="fps24">24<small>Cinematic</small></label>
+      <input type="radio" name="fps" id="fps30" value="30"><label for="fps30">30<small>Smooth</small></label>
+      <input type="radio" name="fps" id="fps60" value="60"><label for="fps60">60<small>Motion</small></label>
+      <input type="radio" name="fps" id="fps120" value="120"><label for="fps120">120<small>Slow-mo</small></label>
+      <input type="radio" name="fps" id="fps240" value="240"><label for="fps240">240<small>Extreme</small></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend><span class="step">03</span>Colour</legend>
+    <div class="seg c2">
+      <input type="radio" name="profile" id="pStd" value="standard" checked><label for="pStd">Standard<small>Ready to share</small></label>
+      <input type="radio" name="profile" id="pLog" value="ilog"><label for="pLog">I-Log<small>For colour grading</small></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend><span class="step">04</span>Filter on the lens</legend>
+    <div class="seg c5">
+      <input type="radio" name="ndBase" id="ndNone" value="none"><label for="ndNone">None</label>
+      <input type="radio" name="ndBase" id="nd8" value="nd8"><label for="nd8">ND8</label>
+      <input type="radio" name="ndBase" id="nd16" value="nd16"><label for="nd16">ND16</label>
+      <input type="radio" name="ndBase" id="nd32" value="nd32" checked><label for="nd32">ND32</label>
+      <input type="radio" name="ndBase" id="nd64" value="nd64"><label for="nd64">ND64</label>
+    </div>
+    <p class="group-note">Polariser version (ND/PL)?</p>
+    <div class="seg c2 compact">
+      <input type="radio" name="pl" id="plOff" value="plain" checked><label for="plOff">No</label>
+      <input type="radio" name="pl" id="plOn" value="pl"><label for="plOn">Yes, ND/PL</label>
+    </div>
+    <p class="group-note">Second filter stacked on top?</p>
+    <div class="seg c5 compact">
+      <input type="radio" name="stack" id="stNone" value="none" checked><label for="stNone">None</label>
+      <input type="radio" name="stack" id="st8" value="nd8"><label for="st8">+ND8</label>
+      <input type="radio" name="stack" id="st16" value="nd16"><label for="st16">+ND16</label>
+      <input type="radio" name="stack" id="st32" value="nd32"><label for="st32">+ND32</label>
+      <input type="radio" name="stack" id="st64" value="nd64"><label for="st64">+ND64</label>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend><span class="step">05</span>Lens</legend>
+    <div class="seg c2 compact">
+      <input type="radio" name="lens" id="lensMain" value="main" checked><label for="lensMain">Main<small>1× and 2× zoom</small></label>
+      <input type="radio" name="lens" id="lensTele" value="tele"><label for="lensTele">Tele<small>3× zoom and up</small></label>
+    </div>
+  </fieldset>
+
+  <section class="checklist" id="setupSteps">
+    <h2>Set it on the camera</h2>
+    <ol id="outChecklist"></ol>
+  </section>
+
+  <details class="more">
+    <summary>Why these numbers?</summary>
+    <dl class="details">
+      <div class="row"><dt>Ideal shutter (180° rule)</dt><dd id="outIdeal">1/50</dd></div>
+      <div class="row"><dt>Best filter for this scene</dt><dd id="outBestNd">—</dd></div>
+      <div class="row"><dt>Scene brightness</dt><dd id="outEv">EV 12 (approx.)</dd></div>
+    </dl>
+    <div class="why" id="outWhy"></div>
+    <div class="notes" id="outNotes"></div>
+  </details>
+
+  <footer>
+    <p>Lighting presets are estimates, not a light meter. Always check the camera’s preview.</p>
+    <p>Unofficial. Not affiliated with Insta360 or Freewell. <a href="../">All luxkit tools</a></p>
+    <p id="selftest">Self-test: running…</p>
+  </footer>
+</main>
+
+<script src="../shared/exposure-core.js"></script>
+<script src="camera.js"></script>
+<script src="../shared/register-sw.js"></script>
+<script>
+(function () {
+  "use strict";
+  var Cam = window.LunaUltra;
+  var lastRec = null;
+
+  function $(id) { return document.getElementById(id); }
+  function checkedValue(name) {
+    var el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : undefined;
+  }
+  function check(name, value) {
+    var el = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
+    if (el) el.checked = true;
+  }
+  function setText(id, text, fallback) {
+    var el = $(id);
+    if (!el) return;
+    var bad = text === undefined || text === null || String(text).trim() === "" || /NaN|undefined|Infinity/.test(String(text));
+    el.textContent = bad ? fallback : String(text);
+  }
+  function setList(id, tag, lines) {
+    var el = $(id);
+    if (!el) return;
+    el.textContent = "";
+    (lines || []).forEach(function (line) {
+      var item = document.createElement(tag);
+      item.textContent = line;
+      el.appendChild(item);
+    });
+  }
+
+  // Filter row + polariser switch → camera.js ND key (e.g. nd32 or nd32pl).
+  function ndKey() {
+    var base = checkedValue("ndBase");
+    if (!base || base === "none") return base;
+    return base + (checkedValue("pl") === "pl" ? "pl" : "");
+  }
+
+  // One of each filter: the second-filter option matching the main filter is disabled.
+  function syncStack() {
+    var nd = ndKey();
+    document.querySelectorAll('input[name="stack"]').forEach(function (el) {
+      el.disabled = el.value !== "none" && el.value === nd;
+      if (el.disabled && el.checked) $("stNone").checked = true;
+    });
+  }
+
+  function render() {
+    var errorBox = $("errorBox");
+    try {
+      syncStack();
+      var measured = checkedValue("light") === "measured";
+      $("evEntry").hidden = !measured;
+      var r = Cam.calculate({
+        fps: checkedValue("fps"),
+        light: checkedValue("light"),
+        ev: $("evInput").value,
+        nd: ndKey(),
+        stack: checkedValue("stack"),
+        profile: checkedValue("profile"),
+        lens: checkedValue("lens")
+      });
+
+      var lens = Cam.LENS[r.inputs.lens];
+      setText("outTitle", "Luna Ultra · " + lens.label.toLowerCase() + " lens f/" + lens.aperture.toFixed(1) +
+        " · " + r.filterLabel, "Luna Ultra");
+      setText("outIso", r.isoText, "400");
+      setText("outShutter", r.shutterText, "1/50");
+      setText("outIdeal", r.idealText, "1/50");
+      setText("outBestNd", r.bestNdText, "—");
+      setText("outEv", "EV " + r.sceneEv + " (approx.)", "—");
+
+      var isoSub = r.inputs.profile === "ilog" && r.iso === Cam.CAMERA.ilogNativeIso ? "Native I-Log"
+        : r.iso === r.isoFloor && r.mode === "tooBright" ? "Lowest"
+        : r.iso === Cam.CAMERA.isoMax && r.mode === "tooDark" ? "Highest" : " ";
+      setText("outIsoSub", isoSub, " ");
+      setText("outShutterSub", r.shutterChanged ? "Ideal is " + r.idealText : "Ideal for " + r.inputs.fps + " fps", " ");
+      $("outShutterSub").classList.toggle("changed", r.shutterChanged);
+
+      // Meter: residual clamped to ±3 stops.
+      var clamped = Math.max(-3, Math.min(3, r.residualStops));
+      var needle = $("needle");
+      needle.style.left = (50 + (clamped / 3) * 50) + "%";
+      needle.className = "needle " + r.status;
+
+      setText("outStatus", r.status === "ok" ? "Exposure about right"
+        : r.status === "over" ? "Too bright" : "Too dark", "Exposure about right");
+      $("outStatus").className = "status " + r.status;
+
+      // Only the most important warning stays on screen; the rest go under "Why".
+      var warn = $("outWarn");
+      warn.hidden = r.warnings.length === 0;
+      warn.textContent = r.warnings[0] || "";
+
+      var adv = $("ndAdvice");
+      lastRec = r.recommendedInputs;
+      if (r.advice) {
+        $("ndAdviceText").textContent = r.advice;
+        adv.hidden = false;
+        adv.classList.toggle("alert", !!r.adviceAlert);
+        $("useRec").hidden = !!r.adviceAlert;
+      } else {
+        adv.hidden = true;
+      }
+
+      setList("outChecklist", "li", r.checklist);
+      setList("outWhy", "p", r.warnings.slice(1).concat(r.why));
+      setList("outNotes", "p", r.notes);
+
+      if (measured && r.inputs.light !== "measured") {
+        // Measured chosen but no usable EV yet: show the Cloudy estimate and say so.
+        errorBox.textContent = "Type the EV from your light-meter app (" + Cam.MEASURED_EV.min + " to " +
+          Cam.MEASURED_EV.max + "). Until then, results use the Cloudy estimate.";
+        errorBox.hidden = false;
+      } else if (r.inputs.wasCorrected) {
+        errorBox.textContent = "An input was missing or invalid, so defaults were used. Tap a setting to choose again.";
+        errorBox.hidden = false;
+      } else {
+        errorBox.hidden = true;
+      }
+    } catch (err) {
+      setText("outIso", "400", "400");
+      setText("outShutter", "1/50", "1/50");
+      setText("outStatus", "Showing safe defaults", "Showing safe defaults");
+      errorBox.textContent = "Calculation failed, so safe defaults (ISO 400, 1/50) are shown — these are not calculated. Change any setting to retry.";
+      errorBox.hidden = false;
+      if (window.console) console.error(err);
+    }
+  }
+
+  // "Use" applies the recommended filter(s) to the inputs.
+  function useRecommendation() {
+    if (!lastRec) return;
+    var nd = lastRec.nd;
+    var isPl = /pl$/.test(nd);
+    check("ndBase", isPl ? nd.slice(0, -2) : nd);
+    if (nd !== "none") check("pl", isPl ? "pl" : "plain");
+    check("stack", lastRec.stack);
+    render();
+  }
+
+  function runTests() {
+    var el = $("selftest");
+    try {
+      var t = Cam.runSelfTests();
+      window.__selfTest = t;
+      if (t.passed === t.total) {
+        el.textContent = "Self-test: " + t.passed + "/" + t.total + " exposure checks passed.";
+        el.className = "";
+      } else {
+        var failed = t.results.filter(function (r) { return !r.pass; }).map(function (r) { return r.name; });
+        el.textContent = "Self-test: " + (t.total - t.passed) + " failed — " + failed.join("; ");
+        el.className = "fail";
+      }
+    } catch (e) {
+      el.textContent = "Self-test could not run.";
+      el.className = "fail";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll('input[type="radio"]').forEach(function (input) {
+      input.addEventListener("change", render);
+    });
+    $("useRec").addEventListener("click", useRecommendation);
+    $("evInput").addEventListener("input", render);
+    $("lMeasured").addEventListener("change", function () { if (!$("evInput").value) $("evInput").focus(); });
+    render();
+    runTests();
+  });
+})();
+</script>
+</body>
+</html>

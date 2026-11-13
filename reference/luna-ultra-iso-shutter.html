@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#121820">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ISO &amp; Shutter">
+<title>Insta360 ISO &amp; Shutter Calculator</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #121820;
+    --panel: #1a222c;
+    --panel-2: #212b37;
+    --line: #2c3845;
+    --text: #e8ecef;
+    --muted: #8c98a6;
+    --amber: #ffb547;
+    --alert: #ff6a55;
+    --good: #6fd3a8;
+    --radius-l: 18px;
+    --radius-s: 11px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { margin: 0; background: var(--bg); }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body {
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+    z-index: 10; background: var(--bg);
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 0 16px 28px; }
+
+  /* ---------- Readout (sticky) ---------- */
+  .readout {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    background: var(--bg); padding: 12px 0 10px; margin: 0 -16px; padding-left: 16px; padding-right: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .title { font-size: 13px; color: var(--muted); margin: 0 0 8px; font-weight: 500; letter-spacing: 0.01em; }
+  .values { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .value {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l);
+    padding: 10px 14px 12px;
+  }
+  .value-label { font-size: 13px; color: var(--muted); }
+  .value-num {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    font-size: clamp(40px, 13vw, 58px); font-weight: 300; line-height: 1.05;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap;
+  }
+  .value-sub { font-size: 12.5px; color: var(--muted); min-height: 1.2em; }
+  .value-sub.changed { color: var(--amber); }
+
+  /* Exposure meter */
+  .meter { margin-top: 12px; }
+  .meter-scale { position: relative; height: 30px; }
+  .meter-ticks { position: absolute; inset: 8px 0 auto; height: 12px; display: flex; justify-content: space-between; }
+  .meter-ticks span { width: 2px; height: 12px; background: var(--line); border-radius: 1px; }
+  .meter-ticks span.minor { height: 7px; margin-top: 5px; }
+  .meter-ticks span.zero { background: var(--muted); height: 14px; margin-top: -1px; }
+  .needle {
+    position: absolute; top: 2px; width: 4px; height: 24px; margin-left: -2px; border-radius: 2px;
+    background: var(--amber); left: 50%;
+  }
+  .needle.over, .needle.under { background: var(--alert); }
+  .needle.ok { background: var(--good); }
+  .meter-nums { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .status { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+  .status.ok { color: var(--good); }
+  .status.over, .status.under { color: var(--alert); }
+
+  /* ---------- Controls ---------- */
+  .group { margin-top: 20px; border: 0; padding: 0; min-width: 0; }
+  .group legend { font-size: 14px; color: var(--muted); padding: 0; margin-bottom: 8px; font-weight: 500; }
+  .seg { display: grid; gap: 6px; }
+  .seg.c5 { grid-template-columns: repeat(5, 1fr); }
+  .seg.c2 { grid-template-columns: repeat(2, 1fr); }
+  .seg.c4 { grid-template-columns: repeat(2, 1fr); }
+  .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+  .seg label {
+    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    min-height: 52px; padding: 6px 4px; border-radius: var(--radius-s);
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    font-size: 15px; font-weight: 600; cursor: pointer; user-select: none; -webkit-user-select: none;
+  }
+  .seg.c4 label { align-items: flex-start; text-align: left; padding: 8px 12px; font-size: 14.5px; }
+  .seg label small { font-size: 11px; font-weight: 400; color: var(--muted); line-height: 1.2; margin-top: 2px; }
+  .seg input:checked + label { background: var(--panel-2); border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+  .seg input:checked + label small { color: var(--text); }
+  .seg input:focus-visible + label { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  /* ---------- Details ---------- */
+  .details { margin-top: 24px; border-top: 1px solid var(--line); }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .row dt { color: var(--muted); font-size: 14.5px; }
+  .row dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .advice {
+    margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-s);
+    border-left: 3px solid var(--amber); background: var(--panel); font-size: 15px;
+  }
+  .advice[hidden] { display: none; }
+  .advice.alert { border-left-color: var(--alert); }
+  .why { margin-top: 14px; font-size: 15px; color: var(--text); }
+  .why p { margin: 0 0 8px; }
+  .notes { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+  .notes p { margin: 0 0 6px; }
+  .error {
+    margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-s);
+    background: #3a1d1a; color: #ffd2cb; font-size: 14.5px;
+  }
+  .error[hidden] { display: none; }
+
+  footer { margin-top: 26px; font-size: 12.5px; color: var(--muted); }
+  footer p { margin: 0 0 6px; }
+  #selftest.fail { color: var(--alert); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+
+  <section class="readout" aria-live="polite">
+    <p class="title">Insta360 Luna Ultra, main lens f/1.8. Results are approximate.</p>
+    <div class="values">
+      <div class="value">
+        <div class="value-label">Recommended ISO</div>
+        <div class="value-num" id="outIso">400</div>
+        <div class="value-sub" id="outIsoSub">&nbsp;</div>
+      </div>
+      <div class="value">
+        <div class="value-label">Recommended shutter</div>
+        <div class="value-num" id="outShutter">1/50</div>
+        <div class="value-sub" id="outShutterSub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="meter" aria-hidden="true">
+      <div class="meter-scale">
+        <div class="meter-ticks">
+          <span></span><span class="minor"></span><span></span><span class="minor"></span><span></span><span class="minor"></span>
+          <span class="zero"></span>
+          <span class="minor"></span><span></span><span class="minor"></span><span></span><span class="minor"></span><span></span>
+        </div>
+        <div class="needle" id="needle"></div>
+      </div>
+      <div class="meter-nums"><span>−3</span><span>−2</span><span>−1</span><span>0</span><span>+1</span><span>+2</span><span>+3</span></div>
+    </div>
+    <p class="status" id="outStatus">Calculating…</p>
+  </section>
+
+  <fieldset class="group">
+    <legend>Frame rate</legend>
+    <div class="seg c5" id="grpFps">
+      <input type="radio" name="fps" id="fps24" value="24" checked><label for="fps24">24<small>Cinematic</small></label>
+      <input type="radio" name="fps" id="fps30" value="30"><label for="fps30">30<small>Smooth</small></label>
+      <input type="radio" name="fps" id="fps60" value="60"><label for="fps60">60<small>Motion</small></label>
+      <input type="radio" name="fps" id="fps120" value="120"><label for="fps120">120<small>Slow-mo</small></label>
+      <input type="radio" name="fps" id="fps240" value="240"><label for="fps240">240<small>Extreme</small></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend>Lighting</legend>
+    <div class="seg c4" id="grpLight">
+      <input type="radio" name="light" id="lBeach" value="beach"><label for="lBeach">Very bright sun<small>Beach, sand, snow</small></label>
+      <input type="radio" name="light" id="lSunny" value="sunny"><label for="lSunny">Bright sunny day<small>Clear sky</small></label>
+      <input type="radio" name="light" id="lDay" value="daylight"><label for="lDay">Normal daylight<small>Hazy or soft sun</small></label>
+      <input type="radio" name="light" id="lCloud" value="overcast" checked><label for="lCloud">Cloudy<small>Overcast sky</small></label>
+      <input type="radio" name="light" id="lShade" value="shade"><label for="lShade">Shade<small>Under trees, buildings</small></label>
+      <input type="radio" name="light" id="lGolden" value="golden"><label for="lGolden">Golden hour<small>Sunset, low sun</small></label>
+      <input type="radio" name="light" id="lIndoor" value="indoor"><label for="lIndoor">Indoor<small>Home or office lights</small></label>
+      <input type="radio" name="light" id="lNight" value="night"><label for="lNight">Night<small>Lit streets</small></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend>Freewell ND filter</legend>
+    <div class="seg c5" id="grpNd">
+      <input type="radio" name="nd" id="ndNone" value="none"><label for="ndNone">None<small>0 stops</small></label>
+      <input type="radio" name="nd" id="nd8" value="nd8"><label for="nd8">ND8<small>3 stops</small></label>
+      <input type="radio" name="nd" id="nd16" value="nd16"><label for="nd16">ND16<small>4 stops</small></label>
+      <input type="radio" name="nd" id="nd32" value="nd32" checked><label for="nd32">ND32<small>5 stops</small></label>
+      <input type="radio" name="nd" id="nd64" value="nd64"><label for="nd64">ND64<small>6 stops</small></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="group">
+    <legend>Colour profile</legend>
+    <div class="seg c2" id="grpProfile">
+      <input type="radio" name="profile" id="pStd" value="standard" checked><label for="pStd">Standard</label>
+      <input type="radio" name="profile" id="pLog" value="ilog"><label for="pLog">I-Log<small>Native ISO 400</small></label>
+    </div>
+  </fieldset>
+
+  <div class="error" id="errorBox" role="alert" hidden></div>
+
+  <div class="advice" id="ndAdvice" hidden></div>
+
+  <dl class="details">
+    <div class="row"><dt>Ideal 180° shutter</dt><dd id="outIdeal">1/50</dd></div>
+    <div class="row"><dt>Exposure-corrected shutter</dt><dd id="outCorrected">1/50</dd></div>
+    <div class="row"><dt>Best ND for this scene</dt><dd id="outBestNd">—</dd></div>
+    <div class="row"><dt>Scene estimate</dt><dd id="outEv">EV 14</dd></div>
+  </dl>
+
+  <div class="why" id="outWhy"><p>&nbsp;</p></div>
+  <div class="notes" id="outNotes"></div>
+
+  <footer>
+    <p>Lighting presets are rough estimates, not a light meter. Check the camera’s own exposure and adjust.</p>
+    <p>Assumes the 20mm f/1.8 main lens. The 60mm tele lens is f/2.0, about ⅓ stop darker: raise ISO one step.</p>
+    <p id="selftest">Self-test: running…</p>
+  </footer>
+</main>
+
+<script>
+/* ==========================================================================
+   Exposure core — pure functions, no DOM. Also loadable in Node for tests.
+   ========================================================================== */
+(function (root) {
+  "use strict";
+
+  // Verified Luna Ultra specs (Insta360 spec sheet / retailer listings, 2026):
+  // main lens f/1.8, tele f/2.0, ISO 100–6400, video shutter 1/8000 to 1/fps,
+  // I-Log native ISO 400 (Insta360 online manual, Luna Series I-Log FAQ).
+  var CAMERA = {
+    aperture: 1.8,
+    isoMin: 100,
+    isoMax: 6400,
+    fastestShutterDen: 8000,
+    ilogNativeIso: 400
+  };
+
+  var FPS = {
+    24:  { idealDen: 50,  alt: "1/48",  label: "24 fps" },
+    30:  { idealDen: 60,  alt: null,    label: "30 fps" },
+    60:  { idealDen: 120, alt: null,    label: "60 fps" },
+    120: { idealDen: 240, alt: "1/250", label: "120 fps" },
+    240: { idealDen: 480, alt: "1/500", label: "240 fps" }
+  };
+
+  // Approximate EV100 per scene (standard exposure-value tables).
+  var LIGHT = {
+    beach:    { ev: 16, label: "very bright sun" },
+    sunny:    { ev: 15, label: "bright sun" },
+    daylight: { ev: 14, label: "normal daylight" },
+    overcast: { ev: 12, label: "overcast" },
+    shade:    { ev: 11, label: "shade" },
+    golden:   { ev: 10, label: "golden hour" },
+    indoor:   { ev: 7,  label: "indoor lighting" },
+    night:    { ev: 4,  label: "night street lighting" }
+  };
+
+  var ND = {
+    none: { stops: 0, label: "No ND" },
+    nd8:  { stops: 3, label: "ND8" },
+    nd16: { stops: 4, label: "ND16" },
+    nd32: { stops: 5, label: "ND32" },
+    nd64: { stops: 6, label: "ND64" }
+  };
+  var ND_ORDER = ["none", "nd8", "nd16", "nd32", "nd64"];
+
+  var PROFILE = {
+    standard: { label: "Standard", targetIso: 100 },
+    ilog:     { label: "I-Log",    targetIso: 400 }
+  };
+
+  // Common ⅓-stop ISO values within the verified range.
+  var ISO_STEPS = [100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6400];
+  // Common shutter denominators (1/x).
+  var SHUTTER_STEPS = [24, 25, 30, 40, 48, 50, 60, 80, 100, 120, 125, 160, 200, 240, 250, 320, 400, 480, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6400, 8000];
+
+  var DEFAULTS = { fps: "24", light: "overcast", nd: "nd32", profile: "standard" };
+  var TOL = 1 / 6; // stops; half of a ⅓-stop step
+
+  function log2(x) { return Math.log(x) / Math.LN2; }
+
+  // EV100 = log2(N²/t) − log2(ISO/100)
+  function ev100FromSettings(N, t, iso) {
+    return log2((N * N) / t) - log2(iso / 100);
+  }
+
+  // ISO that gives correct exposure for a scene, after ND, at aperture N and shutter t.
+  function isoRequired(sceneEv, ndStops, N, t) {
+    var evAtSensor = sceneEv - ndStops;
+    return 100 * Math.pow(2, log2((N * N) / t) - evAtSensor);
+  }
+
+  // Shutter time giving correct exposure at a given ISO.
+  function shutterRequired(sceneEv, ndStops, N, iso) {
+    var evAtSensor = sceneEv - ndStops;
+    return (N * N) / Math.pow(2, evAtSensor + log2(iso / 100));
+  }
+
+  function nearestInLog(list, x) {
+    var best = list[0], bestD = Infinity;
+    for (var i = 0; i < list.length; i++) {
+      var d = Math.abs(log2(list[i] / x));
+      if (d < bestD) { bestD = d; best = list[i]; }
+    }
+    return best;
+  }
+
+  function isFiniteNum(x) { return typeof x === "number" && isFinite(x); }
+
+  function sanitize(inputs) {
+    var i = inputs || {};
+    var clean = {
+      fps: FPS.hasOwnProperty(String(i.fps)) ? String(i.fps) : DEFAULTS.fps,
+      light: LIGHT.hasOwnProperty(i.light) ? i.light : DEFAULTS.light,
+      nd: ND.hasOwnProperty(i.nd) ? i.nd : DEFAULTS.nd,
+      profile: PROFILE.hasOwnProperty(i.profile) ? i.profile : DEFAULTS.profile
+    };
+    clean.wasCorrected = clean.fps !== String(i.fps) || clean.light !== i.light || clean.nd !== i.nd || clean.profile !== i.profile;
+    return clean;
+  }
+
+  function formatShutter(den) {
+    if (!isFiniteNum(den) || den <= 0) return "1/50";
+    return "1/" + Math.round(den);
+  }
+
+  function formatIso(iso) {
+    if (!isFiniteNum(iso) || iso <= 0) return "400";
+    return String(Math.round(iso));
+  }
+
+  function ndSuffixFor(stops) {
+    return "ND" + Math.pow(2, stops);
+  }
+
+  // Pick the best Freewell filter for the scene at the ideal shutter.
+  function recommendNd(sceneEv, N, idealT, profileKey) {
+    var target = PROFILE[profileKey].targetIso;
+    var lo = CAMERA.isoMin * Math.pow(2, -TOL);
+    var hi = CAMERA.isoMax * Math.pow(2, TOL);
+    var valid = [], allTooBright = true, allTooDark = true;
+
+    ND_ORDER.forEach(function (key) {
+      var req = isoRequired(sceneEv, ND[key].stops, N, idealT);
+      if (req >= lo) allTooBright = false;
+      if (req <= hi) allTooDark = false;
+      if (req >= lo && req <= hi) valid.push({ key: key, iso: req });
+    });
+
+    if (valid.length) {
+      var best = valid[0];
+      if (profileKey === "ilog") {
+        valid.forEach(function (v) {
+          if (Math.abs(log2(v.iso / target)) < Math.abs(log2(best.iso / target))) best = v;
+        });
+      } else {
+        // Standard: strongest ND that still allows correct exposure (lowest ISO = least noise).
+        valid.forEach(function (v) { if (v.iso < best.iso) best = v; });
+      }
+      return { key: best.key, sufficient: true, stopsNeeded: null };
+    }
+
+    if (allTooBright) {
+      var stopsNeeded = sceneEv - log2((N * N) / idealT) + log2(target / 100);
+      return { key: "nd64", sufficient: false, tooBright: true, stopsNeeded: stopsNeeded };
+    }
+    return { key: "none", sufficient: false, tooDark: allTooDark, stopsNeeded: null };
+  }
+
+  function round1(x) { return Math.round(x * 10) / 10; }
+
+  function calculate(rawInputs) {
+    var inp = sanitize(rawInputs);
+    var fps = Number(inp.fps);
+    var fpsInfo = FPS[inp.fps];
+    var light = LIGHT[inp.light];
+    var nd = ND[inp.nd];
+    var N = CAMERA.aperture;
+
+    var idealDen = fpsInfo.idealDen;
+    var idealT = 1 / idealDen;
+    var evAtSensor = light.ev - nd.stops;
+    var isoReq = isoRequired(light.ev, nd.stops, N, idealT);
+
+    var lo = CAMERA.isoMin * Math.pow(2, -TOL);
+    var hi = CAMERA.isoMax * Math.pow(2, TOL);
+
+    var iso, den, mode;
+    if (isoReq >= lo && isoReq <= hi) {
+      // 1–2. Keep the 180° shutter; ISO does the work.
+      mode = "inRange";
+      den = idealDen;
+      iso = nearestInLog(ISO_STEPS, isoReq);
+    } else if (isoReq < lo) {
+      // Too bright: ISO floors at 100, shutter gets faster.
+      mode = "tooBright";
+      iso = CAMERA.isoMin;
+      var tNeeded = shutterRequired(light.ev, nd.stops, N, iso);
+      var denExact = 1 / tNeeded;
+      var candidates = SHUTTER_STEPS.filter(function (s) { return s >= idealDen && s <= CAMERA.fastestShutterDen; });
+      den = denExact >= CAMERA.fastestShutterDen ? CAMERA.fastestShutterDen : nearestInLog(candidates, denExact);
+    } else {
+      // Too dark: shutter can open to 1/fps at most, then ISO tops out.
+      mode = "tooDark";
+      den = fps;
+      var iso2 = isoRequired(light.ev, nd.stops, N, 1 / den);
+      if (iso2 <= hi) {
+        iso = nearestInLog(ISO_STEPS, Math.max(iso2, CAMERA.isoMin));
+      } else {
+        iso = CAMERA.isoMax;
+      }
+    }
+
+    // Residual exposure error in stops: + overexposed, − underexposed.
+    var neededAtUsed = isoRequired(light.ev, nd.stops, N, 1 / den);
+    var residual = log2(iso / neededAtUsed);
+    var status = Math.abs(residual) <= 0.34 ? "ok" : (residual > 0 ? "over" : "under");
+
+    var rec = recommendNd(light.ev, N, idealT, inp.profile);
+
+    // ---- Text ----
+    var warnings = [];
+    var shutterChanged = den !== idealDen;
+
+    if (status === "over") {
+      warnings.push("Likely overexposed by about " + round1(residual) + " stops, even at " + formatShutter(den) + " and ISO " + iso + ".");
+    } else if (status === "under") {
+      warnings.push("Likely underexposed by about " + round1(-residual) + " stops at ISO " + iso + ". Remove the ND or add light.");
+    }
+    if (mode === "tooBright" && status !== "over") {
+      warnings.push("Shutter is faster than the 180° ideal, so motion looks crisper and choppier.");
+    }
+    if (mode === "tooBright" && status === "over") {
+      warnings.push("Shutter is already faster than the 180° ideal, so motion will also look choppier.");
+    }
+    if (mode === "tooDark") {
+      warnings.push("Shutter opened to " + formatShutter(den) + " (360°) to gather light. Motion blur is heavier than ideal.");
+    }
+    if (iso >= 3200 && status !== "over") {
+      warnings.push("High ISO: expect visible noise.");
+    }
+
+    var ndText;
+    if (rec.sufficient) {
+      ndText = ND[rec.key].label;
+    } else if (rec.tooBright) {
+      ndText = "Stronger than ND64";
+    } else {
+      ndText = "No ND";
+    }
+
+    var advice = null, adviceAlert = false;
+    if (!rec.sufficient && rec.tooBright) {
+      var need = Math.ceil(rec.stopsNeeded - 0.17);
+      advice = "None of your filters is strong enough to hold " + formatShutter(idealDen) + " here. You’d need about " +
+        round1(rec.stopsNeeded) + " stops (" + ndSuffixFor(need) + "). Use ND64 and accept a faster shutter, or shoot at a higher frame rate.";
+      adviceAlert = true;
+    } else if (rec.key !== inp.nd) {
+      advice = "Switch to " + ND[rec.key].label + " to " +
+        (rec.key === "none" ? "let in as much light as possible." :
+          (inp.profile === "ilog" ? "get closest to I-Log’s native ISO 400 at the 180° shutter." :
+            "keep the 180° shutter at the lowest, cleanest ISO."));
+    }
+
+    var why = [];
+    why.push("Approx. EV " + light.ev + " (" + light.label + ")" +
+      (nd.stops ? " minus " + nd.stops + " stops of " + nd.label + " leaves EV " + evAtSensor + " at the lens." : " with no ND."));
+    if (mode === "inRange") {
+      why.push("At f/1.8 and the 180° shutter " + formatShutter(idealDen) + ", correct exposure needs ISO ≈ " +
+        Math.round(isoReq) + ", rounded to " + iso + ". Shutter stays put to keep natural motion blur.");
+    } else if (mode === "tooBright") {
+      why.push("At " + formatShutter(idealDen) + " it would need ISO ≈ " + Math.max(1, Math.round(isoReq)) +
+        ", below the camera’s 100 minimum, so ISO sits at 100 and the shutter speeds up instead.");
+    } else {
+      why.push("At " + formatShutter(idealDen) + " it would need ISO ≈ " + Math.round(isoReq) +
+        ", above the 6400 maximum, so the shutter opens to " + formatShutter(den) + " first.");
+    }
+    if (inp.profile === "ilog" && iso !== CAMERA.ilogNativeIso && status !== "under") {
+      why.push("I-Log’s native ISO is 400; you’re at " + iso + ". Changing ND is the cleaner way to get there.");
+    }
+
+    var notes = [];
+    if (fps <= 30) {
+      notes.push("Even with correct motion blur, fast pans at " + fps + " fps can judder. Pan slowly or use 60 fps for quick moves.");
+    }
+    if (fpsInfo.alt) {
+      notes.push("If the camera offers " + fpsInfo.alt + " instead of " + formatShutter(idealDen) + ", either is fine.");
+    }
+    if (fps === 120) notes.push("120 fps is available up to 4K on the Luna Ultra.");
+    if (fps === 240) notes.push("240 fps is 1080p only on the Luna Ultra.");
+    if (fps >= 120 && inp.profile === "ilog") {
+      notes.push("Not verified: whether I-Log is offered in Slow Motion mode. Check on the camera.");
+    }
+
+    return {
+      inputs: inp,
+      iso: iso,
+      isoText: formatIso(iso),
+      shutterDen: den,
+      shutterText: formatShutter(den),
+      idealDen: idealDen,
+      idealText: formatShutter(idealDen),
+      shutterChanged: shutterChanged,
+      isoRequired: isoReq,
+      evAtSensor: evAtSensor,
+      sceneEv: light.ev,
+      residualStops: residual,
+      status: status,
+      mode: mode,
+      recommendedNd: rec.key,
+      ndSufficient: rec.sufficient,
+      bestNdText: ndText,
+      advice: advice,
+      adviceAlert: adviceAlert,
+      warnings: warnings,
+      why: why,
+      notes: notes
+    };
+  }
+
+  // ---------------------------- Self-tests ----------------------------
+  function runSelfTests() {
+    var results = [];
+    function check(name, cond) { results.push({ name: name, pass: !!cond }); }
+    function near(a, b, eps) { return Math.abs(a - b) <= (eps || 0.01); }
+
+    // Reference cases for EV100 = log2(N²/t) − log2(ISO/100)
+    check("Sunny 16: f/16, 1/100, ISO 100 ≈ EV 14.64", near(ev100FromSettings(16, 1 / 100, 100), log2(25600)));
+    check("f/1.8, 1/50, ISO 100 ≈ EV 7.34", near(ev100FromSettings(1.8, 1 / 50, 100), 7.34, 0.01));
+    check("f/1, 1s, ISO 100 = EV 0", near(ev100FromSettings(1, 1, 100), 0));
+    check("Doubling ISO lowers EV100 by 1", near(ev100FromSettings(4, 1 / 60, 200), ev100FromSettings(4, 1 / 60, 100) - 1));
+    check("isoRequired inverts ev100FromSettings", near(isoRequired(ev100FromSettings(1.8, 1 / 50, 800), 0, 1.8, 1 / 50), 800, 0.001));
+
+    // ND stop differences
+    var base = isoRequired(12, 0, 1.8, 1 / 50);
+    check("ND8 = 8× ISO (3 stops)", near(isoRequired(12, 3, 1.8, 1 / 50) / base, 8, 1e-9));
+    check("ND16 = 16× ISO", near(isoRequired(12, 4, 1.8, 1 / 50) / base, 16, 1e-9));
+    check("ND32 = 32× ISO", near(isoRequired(12, 5, 1.8, 1 / 50) / base, 32, 1e-9));
+    check("ND64 = 64× ISO", near(isoRequired(12, 6, 1.8, 1 / 50) / base, 64, 1e-9));
+    check("ND8 → ND64 = 8× exposure requirement", near(isoRequired(12, 6, 1.8, 1 / 50) / isoRequired(12, 3, 1.8, 1 / 50), 8, 1e-9));
+
+    // Known behaviours
+    var a = calculate({ fps: "24", light: "indoor", nd: "nd8", profile: "standard" });
+    var b = calculate({ fps: "24", light: "indoor", nd: "nd16", profile: "standard" });
+    check("Indoor 24fps ND8→ND16: shutter fixed at 1/50", a.shutterDen === 50 && b.shutterDen === 50);
+    check("Indoor 24fps ND8→ND16: ISO doubles (1000→2000)", a.iso === 1000 && b.iso === 2000);
+
+    var n = calculate({ fps: "24", light: "night", nd: "none", profile: "standard" });
+    check("Night 24fps no ND: 1/50, ISO 1000, exposure OK", n.shutterDen === 50 && n.iso === 1000 && n.status === "ok");
+
+    var sun = calculate({ fps: "24", light: "sunny", nd: "nd64", profile: "standard" });
+    check("Bright sun 24fps ND64: ISO at minimum 100", sun.iso === 100);
+    check("Bright sun 24fps ND64: shutter faster than 1/50", sun.shutterDen > 50);
+    check("Bright sun 24fps: ND64 flagged as not enough", sun.ndSufficient === false);
+
+    var dark = calculate({ fps: "240", light: "night", nd: "nd64", profile: "standard" });
+    check("Night 240fps ND64: ISO at maximum 6400", dark.iso === 6400);
+    check("Night 240fps ND64: shutter capped at 1/240", dark.shutterDen === 240);
+    check("Night 240fps ND64: underexposed warning", dark.status === "under" && dark.warnings.length > 0);
+    check("Night 240fps ND64: recommends No ND", dark.recommendedNd === "none");
+
+    var slo = calculate({ fps: "240", light: "sunny", nd: "nd32", profile: "standard" });
+    check("Bright sun 240fps ND32: holds 1/480", slo.shutterDen === 480 && slo.status === "ok");
+
+    var log = calculate({ fps: "60", light: "overcast", nd: "none", profile: "ilog" });
+    check("I-Log recommends ND closest to native ISO 400", (function () {
+      var r = isoRequired(12, ND[log.recommendedNd].stops, 1.8, 1 / 120);
+      return ND_ORDER.every(function (k) {
+        var x = isoRequired(12, ND[k].stops, 1.8, 1 / 120);
+        if (x < 100 * Math.pow(2, -TOL) || x > 6400 * Math.pow(2, TOL)) return true;
+        return Math.abs(log2(r / 400)) <= Math.abs(log2(x / 400)) + 1e-9;
+      });
+    })());
+
+    var bad = calculate({ fps: "999", light: "moon", nd: "nd1000", profile: "raw" });
+    check("Invalid inputs fall back to defaults", bad.inputs.wasCorrected && bad.inputs.fps === "24" && bad.inputs.nd === "nd32" && bad.inputs.light === "overcast");
+    check("formatShutter guards NaN", formatShutter(NaN) === "1/50" && formatIso(Infinity) === "400");
+
+    // Full matrix: every FPS × lighting × ND × profile
+    var allFinite = true, allInRange = true, allText = true, ndChanges = true, shutterLimits = true, noForcedChange = true;
+    Object.keys(FPS).forEach(function (f) {
+      Object.keys(LIGHT).forEach(function (l) {
+        Object.keys(PROFILE).forEach(function (p) {
+          ND_ORDER.forEach(function (k) {
+            var r = calculate({ fps: f, light: l, nd: k, profile: p });
+            if (![r.iso, r.shutterDen, r.idealDen, r.residualStops, r.isoRequired].every(isFiniteNum)) allFinite = false;
+            if (r.iso < CAMERA.isoMin || r.iso > CAMERA.isoMax) allInRange = false;
+            if (r.shutterDen < Number(f) || r.shutterDen > CAMERA.fastestShutterDen) shutterLimits = false;
+            var txt = [r.isoText, r.shutterText, r.idealText, r.bestNdText].concat(r.why).join(" ");
+            if (!txt.trim() || /NaN|undefined|Infinity/.test(txt)) allText = false;
+            // When exposure fits at the 180° shutter, shutter must not move.
+            if (r.mode === "inRange" && r.shutterDen !== r.idealDen) noForcedChange = false;
+          });
+          var r8 = calculate({ fps: f, light: l, nd: "nd8", profile: p });
+          var r64 = calculate({ fps: f, light: l, nd: "nd64", profile: p });
+          if (!near(r64.isoRequired / r8.isoRequired, 8, 1e-6)) ndChanges = false;
+        });
+      });
+    });
+    check("All 400 combinations: numbers finite", allFinite);
+    check("All combinations: ISO within 100–6400", allInRange);
+    check("All combinations: shutter between 1/fps and 1/8000", shutterLimits);
+    check("All combinations: no blank/NaN/undefined text", allText);
+    check("All combinations: ND8→ND64 changes requirement by 3 stops", ndChanges);
+    check("Shutter stays at 180° whenever ISO can cover it", noForcedChange);
+
+    var passed = results.filter(function (r) { return r.pass; }).length;
+    return { passed: passed, total: results.length, results: results };
+  }
+
+  var api = {
+    CAMERA: CAMERA, FPS: FPS, LIGHT: LIGHT, ND: ND, PROFILE: PROFILE, DEFAULTS: DEFAULTS,
+    ev100FromSettings: ev100FromSettings, isoRequired: isoRequired, shutterRequired: shutterRequired,
+    calculate: calculate, formatShutter: formatShutter, formatIso: formatIso, runSelfTests: runSelfTests
+  };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  root.ExposureCore = api;
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+
+<script>
+/* ==========================================================================
+   UI wiring
+   ========================================================================== */
+(function () {
+  "use strict";
+  var Core = window.ExposureCore;
+
+  function $(id) { return document.getElementById(id); }
+  function checkedValue(name) {
+    var el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : undefined;
+  }
+  function setText(id, text, fallback) {
+    var el = $(id);
+    if (!el) return;
+    var t = (text === undefined || text === null || String(text).trim() === "" || /NaN|undefined|Infinity/.test(String(text)))
+      ? fallback : String(text);
+    el.textContent = t;
+  }
+  function setParagraphs(id, lines) {
+    var el = $(id);
+    if (!el) return;
+    el.innerHTML = "";
+    (lines || []).forEach(function (line) {
+      var p = document.createElement("p");
+      p.textContent = line;
+      el.appendChild(p);
+    });
+  }
+
+  function render() {
+    var errorBox = $("errorBox");
+    try {
+      var r = Core.calculate({
+        fps: checkedValue("fps"),
+        light: checkedValue("light"),
+        nd: checkedValue("nd"),
+        profile: checkedValue("profile")
+      });
+
+      setText("outIso", r.isoText, "400");
+      setText("outShutter", r.shutterText, "1/50");
+      setText("outIdeal", r.idealText, "1/50");
+      setText("outCorrected", r.shutterText + (r.shutterChanged ? "" : " (same)"), "1/50");
+      setText("outBestNd", r.bestNdText, "—");
+      setText("outEv", "EV " + r.sceneEv + " (approx.)", "—");
+
+      var isoSub = r.iso === 100 && r.mode === "tooBright" ? "At minimum"
+        : r.iso === 6400 && r.mode === "tooDark" ? "At maximum"
+        : (r.inputs.profile === "ilog" && r.iso === 400 ? "Native I-Log" : "\u00a0");
+      setText("outIsoSub", isoSub, "\u00a0");
+
+      var shutterSub = r.shutterChanged ? "Ideal is " + r.idealText : "180° shutter";
+      setText("outShutterSub", shutterSub, "\u00a0");
+      $("outShutterSub").classList.toggle("changed", r.shutterChanged);
+
+      // Meter
+      var clamped = Math.max(-3, Math.min(3, r.residualStops));
+      var needle = $("needle");
+      needle.style.left = (50 + (clamped / 3) * 50) + "%";
+      needle.className = "needle " + r.status;
+
+      var statusText = r.status === "ok" ? "Exposure about right"
+        : r.status === "over" ? "Overexposed ≈ +" + (Math.round(r.residualStops * 10) / 10) + " stops"
+        : "Underexposed ≈ −" + (Math.round(-r.residualStops * 10) / 10) + " stops";
+      setText("outStatus", statusText, "Exposure about right");
+      $("outStatus").className = "status " + r.status;
+
+      // Advice
+      var adv = $("ndAdvice");
+      if (r.advice) {
+        adv.textContent = r.advice;
+        adv.hidden = false;
+        adv.classList.toggle("alert", !!r.adviceAlert);
+      } else {
+        adv.hidden = true;
+      }
+
+      setParagraphs("outWhy", r.warnings.concat(r.why));
+      setParagraphs("outNotes", r.notes);
+
+      if (r.inputs.wasCorrected) {
+        errorBox.textContent = "An input was missing or invalid, so defaults were used. Tap a setting to choose again.";
+        errorBox.hidden = false;
+      } else {
+        errorBox.hidden = true;
+      }
+    } catch (err) {
+      setText("outIso", "400", "400");
+      setText("outShutter", "1/50", "1/50");
+      setText("outStatus", "Showing safe defaults", "Showing safe defaults");
+      errorBox.textContent = "Calculation failed, so safe defaults (ISO 400, 1/50) are shown — these are not calculated. Change any setting to retry.";
+      errorBox.hidden = false;
+      if (window.console) console.error(err);
+    }
+  }
+
+  function runTests() {
+    var el = $("selftest");
+    try {
+      var t = Core.runSelfTests();
+      window.__selfTest = t;
+      if (t.passed === t.total) {
+        el.textContent = "Self-test: " + t.passed + "/" + t.total + " exposure checks passed.";
+        el.className = "";
+      } else {
+        var failed = t.results.filter(function (r) { return !r.pass; }).map(function (r) { return r.name; });
+        el.textContent = "Self-test: " + (t.total - t.passed) + " failed — " + failed.join("; ");
+        el.className = "fail";
+      }
+    } catch (e) {
+      el.textContent = "Self-test could not run.";
+      el.className = "fail";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll('input[type="radio"]').forEach(function (input) {
+      input.addEventListener("change", render);
+    });
+    render();
+    runTests();
+  });
+})();
+</script>
+</body>
+</html>
