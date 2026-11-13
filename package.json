@@ -8,5 +8,10 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PixelEtch/luxkit.git"
   }
 }

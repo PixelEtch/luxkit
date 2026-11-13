@@ -3,3 +3,4 @@ test-results/
 playwright-report/
 graphify-out/
 .DS_Store
+.claude/
