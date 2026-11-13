@@ -1,7 +1,7 @@
 /* luxkit service worker: one for the whole site, cache-first.
    BUMP CACHE whenever any file in site/ changes, or phones keep the old copy. */
 "use strict";
-var CACHE = "luxkit-v1";
+var CACHE = "luxkit-v2";
 
 // Paths relative to this file (the site root). Pages are cached by their folder URL.
 var PRECACHE = [
@@ -40,6 +40,15 @@ self.addEventListener("fetch", function (event) {
   var req = event.request;
   var url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin) return;
+
+  // Netlify can inject its own toolbar script (/.netlify/...). It's not part of the app:
+  // never cache it, and when offline answer with an empty script instead of an error.
+  if (url.pathname.indexOf("/.netlify/") === 0) {
+    event.respondWith(fetch(req).catch(function () {
+      return new Response("", { headers: { "Content-Type": "application/javascript" } });
+    }));
+    return;
+  }
 
   // ".../index.html" and "...?v=2" are the same page as the folder URL in the cache.
   var key = url.pathname.replace(/index\.html$/, "");
